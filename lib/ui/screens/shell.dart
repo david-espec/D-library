@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../widgets/update_sheet.dart';
 import 'add_sheet.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
@@ -18,6 +19,15 @@ class Shell extends StatefulWidget {
 class ShellState extends State<Shell> {
   int tab = 0;
   final _searchKey = GlobalKey<SearchScreenState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Ao abrir o app, procura versão nova (sem incomodar se não houver).
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) checkForUpdate(context);
+    });
+  }
 
   void go(int i, {String? searchQuery}) {
     setState(() => tab = i);

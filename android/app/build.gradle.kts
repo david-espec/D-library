@@ -12,6 +12,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Necessario para o atualizador dentro do app (ota_update).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -71,4 +73,5 @@ configurations.all {
 
 dependencies {
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

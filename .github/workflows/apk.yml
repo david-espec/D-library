@@ -76,6 +76,10 @@ jobs:
           flutter build apk --release --target-platform android-arm,android-arm64 --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
           cp build/app/outputs/flutter-apk/app-release.apk D-Libery.apk
           ls -la D-Libery.apk
+          # O app instalado le este arquivo para saber se ha versao nova.
+          printf '{"versionCode": %s, "versionName": "1.0.%s", "sha256": "%s"}\n' \
+            "${{ github.run_number }}" "${{ github.run_number }}" "$(sha256sum D-Libery.apk | cut -d' ' -f1)" > version.json
+          cat version.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -91,9 +95,9 @@ jobs:
           notes="D Libery para Android — versão 1.0.${{ github.run_number }}.
           Baixe o D-Libery.apk abaixo no celular e toque nele para instalar."
           if gh release view apk >/dev/null 2>&1; then
-            gh release upload apk D-Libery.apk --clobber
+            gh release upload apk D-Libery.apk version.json --clobber
             gh release edit apk --notes "$notes"
           else
-            gh release create apk D-Libery.apk --target "${{ github.sha }}" \
+            gh release create apk D-Libery.apk version.json --target "${{ github.sha }}" \
               --title "D Libery — app para Android" --notes "$notes"
           fi

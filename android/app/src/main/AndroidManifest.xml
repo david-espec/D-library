@@ -3,6 +3,8 @@
     <!-- Camera: codigo de barras e foto da capa (pedida so na hora de usar). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Atualizar o app por dentro: baixa a versao nova e abre o instalador do Android. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <application
         android:label="D Libery"
         android:name="${applicationName}"
@@ -31,6 +33,15 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <provider
+            android:name="sk.fourq.otaupdate.OtaUpdateFileProvider"
+            android:authorities="${applicationId}.ota_update_provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/filepaths" />
+        </provider>
         <!-- Pede ao Play Services para baixar os modelos de texto e codigo de
              barras logo na instalacao, para a camera ja funcionar na primeira vez. -->
         <meta-data

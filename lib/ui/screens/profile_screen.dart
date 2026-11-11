@@ -11,6 +11,8 @@ import '../../services/stats.dart';
 import '../../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/update_sheet.dart';
+import '../../services/updater.dart';
 import 'library_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -118,6 +120,12 @@ class ProfileScreen extends StatelessWidget {
               if (context.mounted) toast(context, 'Não foi possível restaurar: $e');
             }
           }),
+          row(Icons.system_update_rounded, 'Verificar atualizações',
+              onTap: () => checkForUpdate(context, silent: false),
+              trailing: FutureBuilder(
+                future: Updater.current(),
+                builder: (_, s) => value(s.hasData ? 'v${s.data!.name}' : ''),
+              )),
           row(Icons.info_outline_rounded, 'Sobre o app', onTap: () => _about(context)),
           row(Icons.delete_outline_rounded, 'Apagar todos os dados', onTap: () async {
             final ok = await confirm(context,
