@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/book.dart';
+import 'free_sources.dart' as free;
 import 'isbn.dart';
 import 'text_utils.dart';
 
@@ -13,7 +14,8 @@ enum SearchField {
   author('Autores', 'Ex.: Clarice Lispector'),
   isbn('ISBN', 'Ex.: 9788535914849'),
   publisher('Editora', 'Ex.: Companhia das Letras'),
-  subject('Categorias', 'Ex.: fantasia, história');
+  subject('Categorias', 'Ex.: fantasia, história'),
+  free('Grátis', 'Livros para ler de graça (domínio público)');
 
   const SearchField(this.label, this.hint);
   final String label;
@@ -143,7 +145,7 @@ class BooksApi {
         SearchField.isbn => 'isbn:${cleanIsbn(t)}',
         SearchField.publisher => 'inpublisher:$t',
         SearchField.subject => 'subject:$t',
-        SearchField.all => t,
+        SearchField.all || SearchField.free => t,
       };
 
   Future<List<SearchResult>> searchGoogle(String text, SearchField field, {int max = 24}) async {
@@ -222,7 +224,7 @@ class BooksApi {
     final t = text.trim();
     final isbn = field == SearchField.isbn ? cleanIsbn(t) : null;
     final param = switch (field) {
-      SearchField.all => 'q',
+      SearchField.all || SearchField.free => 'q',
       SearchField.title => 'title',
       SearchField.author => 'author',
       SearchField.isbn => 'isbn',
@@ -257,6 +259,7 @@ class BooksApi {
 
   /// Pesquisa nas duas fontes ao mesmo tempo, intercala e junta duplicatas.
   Future<SearchOutcome> search(String text, SearchField field) async {
+    if (field == SearchField.free) return searchFree(text);
     var f = field;
     if (f == SearchField.all && asIsbn(text) != null) f = SearchField.isbn;
     final q = f == SearchField.isbn ? (asIsbn(text) ?? text) : text;
@@ -300,6 +303,11 @@ class BooksApi {
     try {
       if (r.provider == BookSource.google) {
         r = (await googleVolume(r.providerId)).mergeWith(r);
+      } else if (r.provider != BookSource.openlibrary) {
+        // Fontes gratuitas: completa capa/sinopse pelo Google Books, se achar.
+        final g = await searchGoogle('${r.title} ${r.authors.firstOrNull ?? ''}', SearchField.all, max: 3);
+        final same = g.where((x) => norm(x.title) == norm(r.title)).firstOrNull;
+        if (same != null) r = r.mergeWith(same);
       } else {
         final w = await openLibraryWork(r.providerId);
         r = r.copyWith(
@@ -310,7 +318,7 @@ class BooksApi {
     } catch (_) {}
     if (r.description == null && r.isbn13 != null) {
       try {
-        final other = r.provider == BookSource.google
+        final other = r.provider != BookSource.openlibrary
             ? await searchOpenLibrary(r.isbn13!, SearchField.isbn, max: 1)
             : await searchGoogle(r.isbn13!, SearchField.isbn, max: 1);
         if (other.isNotEmpty) {
@@ -371,6 +379,78 @@ class BooksApi {
       if (items.length < 40) break;
     }
     return out;
+  }
+
+  // ----------------------------------------------- Fontes gratuitas legais
+  Future<List<SearchResult>> _get(Uri uri, List<SearchResult> Function(dynamic json) parse) async {
+    final res = await _client.get(uri).timeout(_timeout);
+    if (res.statusCode == 404) return const [];
+    if (res.statusCode != 200) throw Exception('${uri.host}: ${res.statusCode}');
+    return parse(jsonDecode(utf8.decode(res.bodyBytes)));
+  }
+
+  Future<List<SearchResult>> gutenberg(String q) => _get(free.gutendexUri(q), free.parseGutendex);
+  Future<List<SearchResult>> archive(String q) => _get(free.archiveUri(q), free.parseArchive);
+  Future<List<SearchResult>> wikisource(String q) => _get(free.wikisourceUri(q), free.parseWikisource);
+  Future<List<SearchResult>> librivox(String q) => _get(free.librivoxUri(q), free.parseLibrivox);
+
+  /// Pesquisa só em acervos de leitura gratuita e legal.
+  Future<SearchOutcome> searchFree(String text) async {
+    final q = text.trim();
+    final failed = <String>[];
+    Future<List<SearchResult>> guard(Future<List<SearchResult>> f, String name) =>
+        f.catchError((Object _) {
+          failed.add(name);
+          return <SearchResult>[];
+        });
+    final lists = await Future.wait([
+      guard(gutenberg(q), 'Project Gutenberg'),
+      guard(wikisource(q), 'Wikisource'),
+      guard(archive(q), 'Internet Archive'),
+      guard(librivox(q), 'LibriVox'),
+    ]);
+    final out = <SearchResult>[];
+    final seen = <String>{};
+    final maxLen = lists.fold<int>(0, (m, l) => l.length > m ? l.length : m);
+    for (var i = 0; i < maxLen; i++) {
+      for (final l in lists) {
+        if (i >= l.length) continue;
+        final r = l[i];
+        // Mesmo título/autor em fontes diferentes: mantém todos os links num só.
+        final k = '${norm(r.title)}|${norm(r.authors.firstOrNull?.split(' ').last)}|${r.provider == BookSource.librivox}';
+        if (seen.add(k)) {
+          out.add(r);
+        } else {
+          final j = out.indexWhere((x) => '${norm(x.title)}|${norm(x.authors.firstOrNull?.split(' ').last)}|${x.provider == BookSource.librivox}' == k);
+          if (j >= 0) out[j] = out[j].mergeWith(r);
+        }
+      }
+    }
+    for (final r in out) {
+      cache[r.key] = r;
+    }
+    if (out.isEmpty && failed.length == lists.length) throw Exception('Não foi possível consultar os acervos gratuitos. Verifique a internet.');
+    return SearchOutcome(out, failed);
+  }
+
+  /// Versões gratuitas de um livro específico (para mostrar no detalhe).
+  Future<List<BookLink>> freeEditions(String title, List<String> authors) async {
+    final author = authors.firstOrNull ?? '';
+    final q = '$title ${author.split(' ').last}'.trim();
+    final outcome = await searchFree(q).catchError((Object _) => const SearchOutcome([], []));
+    final t = norm(title).split(' ').where((w) => w.length > 2).toSet();
+    final links = <BookLink>[];
+    for (final r in outcome.results) {
+      final rt = norm(r.title).split(' ').where((w) => w.length > 2).toSet();
+      // Exige que as palavras do título batam (evita livros só parecidos).
+      if (t.isEmpty || rt.isEmpty || t.intersection(rt).length < (t.length < 2 ? 1 : (t.length * .6).ceil())) continue;
+      if (author.isNotEmpty && r.authors.isNotEmpty) {
+        final last = norm(author.split(' ').last);
+        if (!r.authors.any((a) => norm(a).contains(last))) continue;
+      }
+      links.addAll(r.links.where((l) => l.kind == LinkKind.read));
+    }
+    return mergeLinks([links]).take(8).toList();
   }
 
   Future<List<SearchResult>> lookupIsbn(String isbn) async => (await search(isbn, SearchField.isbn)).results;

@@ -1,5 +1,6 @@
 import 'package:d_libery/models/book.dart';
 import 'package:d_libery/services/books_api.dart';
+import 'package:d_libery/services/free_sources.dart';
 import 'package:d_libery/services/isbn.dart';
 import 'package:d_libery/services/ocr.dart';
 import 'package:d_libery/services/stats.dart';
@@ -117,6 +118,58 @@ void main() {
     expect(BooksApi.googleUserId('112233445566'), '112233445566');
     expect(BooksApi.googleUserId('https://books.google.com/books?op=library'), isNull);
     expect(const GoogleShelf(4, 'Have read', 3).label, 'Lidos');
+  });
+
+  test('acervos gratuitos: Gutenberg, Internet Archive, Wikisource, LibriVox', () {
+    final g = parseGutendex({
+      'results': [
+        {
+          'id': 55752,
+          'title': 'Dom Casmurro',
+          'authors': [{'name': 'Machado de Assis, Joaquim Maria'}],
+          'languages': ['pt'],
+          'bookshelves': ['Browsing: Fiction'],
+          'formats': {
+            'text/html; charset=utf-8': 'https://www.gutenberg.org/ebooks/55752.html.images',
+            'application/epub+zip': 'https://www.gutenberg.org/ebooks/55752.epub3.images',
+            'image/jpeg': 'https://www.gutenberg.org/cache/epub/55752/pg55752.cover.medium.jpg',
+          },
+        },
+      ],
+    });
+    expect(g.single.authors.single, 'Joaquim Maria Machado de Assis');
+    expect(g.single.links.where((l) => l.kind == LinkKind.read).length, 2);
+    expect(g.single.coverUrl, contains('cover'));
+
+    final a = parseArchive({
+      'response': {
+        'docs': [
+          {'identifier': 'domcasmurro00assi', 'title': 'Dom Casmurro', 'creator': ['Assis, Machado de'], 'year': '1899'},
+        ],
+      },
+    });
+    expect(a.single.links.single.url, 'https://archive.org/details/domcasmurro00assi');
+    expect(a.single.authors.single, 'Machado de Assis');
+    expect(archiveUri('dom casmurro').queryParametersAll['fl[]'], contains('identifier'));
+
+    final w = parseWikisource({
+      'query': {
+        'search': [
+          {'title': 'Dom Casmurro/I'},
+          {'title': 'Dom Casmurro/II'},
+          {'title': 'Iracema'},
+        ],
+      },
+    });
+    expect(w.map((r) => r.title), ['Dom Casmurro', 'Iracema']);
+
+    final l = parseLibrivox({
+      'books': [
+        {'id': 1, 'title': 'Dom Casmurro', 'authors': [{'first_name': 'Machado', 'last_name': 'de Assis'}], 'url_librivox': 'https://librivox.org/dom-casmurro/'},
+      ],
+    });
+    expect(l.single.links.first.label, contains('Ouvir'));
+    expect(parseLibrivox({'error': 'Audiobooks could not be found'}), isEmpty);
   });
 
   test('mesclar resultados completa campos', () {

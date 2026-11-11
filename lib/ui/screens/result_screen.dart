@@ -137,10 +137,10 @@ class _ResultScreenState extends State<ResultScreen> {
         if (loading && r.description == null) const LinearProgressIndicator(minHeight: 2) else Synopsis(text: r.description),
         const SizedBox(height: 6),
         InfoList(publisher: r.publisher, year: r.year, pageCount: r.pageCount, categories: r.categories, isbn: r.isbn13 ?? r.isbn10, language: r.language),
-        FreeLibraries(title: r.title, author: r.authors.firstOrNull),
+        FreeLibraries(title: r.title, authors: r.authors),
         LinksList(links: links),
         const SizedBox(height: 8),
-        Text('Fonte: ${r.provider == BookSource.google ? 'Google Books' : 'Open Library'}', style: TextStyle(color: p.text3, fontSize: 12)),
+        Text('Fonte: ${r.provider.label}', style: TextStyle(color: p.text3, fontSize: 12)),
       ]),
       bottomNavigationBar: SafeArea(
         child: Padding(

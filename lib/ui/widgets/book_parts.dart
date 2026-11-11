@@ -237,28 +237,47 @@ class _ProgressSheetState extends State<_ProgressSheet> {
 }
 
 
-/// Bibliotecas digitais gratuitas onde o livro pode estar disponível para
-/// empréstimo legal. MEC Livros e BibliOn exigem login e não têm busca por
-/// link: o app copia o título e abre a biblioteca para você colar na busca.
-class FreeLibraries extends StatelessWidget {
-  const FreeLibraries({super.key, required this.title, this.author});
+/// Onde ler o livro de graça, legalmente:
+///  - versões gratuitas achadas automaticamente (Gutenberg, Internet Archive,
+///    Wikisource, LibriVox);
+///  - MEC Livros e BibliOn (empréstimo com login; o app copia o título e abre);
+///  - busca no Open Library.
+class FreeLibraries extends StatefulWidget {
+  const FreeLibraries({super.key, required this.title, this.authors = const []});
   final String title;
-  final String? author;
+  final List<String> authors;
+  @override
+  State<FreeLibraries> createState() => _FreeLibrariesState();
+}
+
+class _FreeLibrariesState extends State<FreeLibraries> {
+  List<BookLink>? found;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<AppState>().api.freeEditions(widget.title, widget.authors).then((l) {
+      if (mounted) setState(() => found = l);
+    }).catchError((Object _) {
+      if (mounted) setState(() => found = const []);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.pal;
-    final query = [title, if (author != null && author!.isNotEmpty) author].join(' ');
+    final author = widget.authors.isNotEmpty ? widget.authors.first : null;
+    final query = [widget.title, ?author].join(' ');
     Future<void> copyAndOpen(String name, String url) async {
       await Clipboard.setData(ClipboardData(text: query));
       if (context.mounted) toast(context, 'Título copiado. No $name, cole na busca.');
       if (context.mounted) await openUrl(context, url);
     }
 
-    Widget tile(String name, String sub, Color color, VoidCallback onTap) => Padding(
+    Widget tile(String name, String sub, Color color, VoidCallback onTap, {bool highlight = false}) => Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Material(
-            color: p.surface,
+            color: highlight ? Color.alphaBlend(p.green.withValues(alpha: .14), p.surface) : p.surface,
             borderRadius: BorderRadius.circular(14),
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
@@ -270,11 +289,11 @@ class FreeLibraries extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(name, style: TextStyle(fontWeight: FontWeight.w600, color: highlight ? p.green : null)),
                       Text(sub, style: TextStyle(color: p.text2, fontSize: 12)),
                     ]),
                   ),
-                  Icon(Icons.open_in_new_rounded, size: 17, color: p.text2),
+                  Icon(Icons.open_in_new_rounded, size: 17, color: highlight ? p.green : p.text2),
                 ]),
               ),
             ),
@@ -284,13 +303,18 @@ class FreeLibraries extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
         padding: const EdgeInsets.only(top: 16, bottom: 6),
-        child: Text('Ler grátis em bibliotecas digitais', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.text2)),
+        child: Row(children: [
+          Expanded(child: Text('Ler grátis em bibliotecas digitais', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.text2))),
+          if (found == null) SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: p.text3)),
+        ]),
       ),
+      for (final l in found ?? const <BookLink>[])
+        tile(l.label, 'Versão gratuita encontrada', p.green, () => openUrl(context, l.url), highlight: true),
       tile('MEC Livros', 'Empréstimo gratuito com sua conta gov.br', const Color(0xFF1351B4),
           () => copyAndOpen('MEC Livros', 'https://meclivros.mec.gov.br')),
       tile('BibliOn', 'Biblioteca digital de SP — empréstimo gratuito com cadastro', const Color(0xFFE8622C),
           () => copyAndOpen('BibliOn', 'https://biblion.org.br')),
-      tile('Open Library', 'Leitura e empréstimo gratuitos, sem sair da busca', const Color(0xFF2E9E62),
+      tile('Open Library', 'Leitura e empréstimo gratuitos', const Color(0xFF6A5ACD),
           () => openUrl(context, 'https://openlibrary.org/search?q=${Uri.encodeQueryComponent(query)}')),
     ]);
   }

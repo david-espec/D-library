@@ -42,7 +42,17 @@ List<BookLink> mergeLinks(List<List<BookLink>> lists) {
   return out;
 }
 
-enum BookSource { google, openlibrary }
+enum BookSource {
+  google('Google Books'),
+  openlibrary('Open Library'),
+  gutenberg('Project Gutenberg'),
+  archive('Internet Archive'),
+  wikisource('Wikisource'),
+  librivox('LibriVox');
+
+  const BookSource(this.label);
+  final String label;
+}
 
 /// Livro encontrado numa API pública.
 class SearchResult {

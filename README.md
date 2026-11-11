@@ -10,6 +10,10 @@ estante e acompanhar suas leituras. Seus dados ficam no próprio celular.
 
 - **Pesquisa** no Google Books e no Open Library ao mesmo tempo, por tudo, título,
   autor, ISBN, editora ou categoria. Resultados repetidos são juntados.
+- **Grátis**: filtro que pesquisa só em acervos de leitura gratuita e legal —
+  Project Gutenberg (Gutendex), Internet Archive (só acesso livre), Wikisource em
+  português e LibriVox (audiolivros). Em cada livro o app procura sozinho essas
+  versões e mostra também MEC Livros e BibliOn (empréstimo com login).
 - **Câmera**: lê o **código de barras ISBN** ao vivo; ou fotografe a **capa** e o
   texto é lido com o **Google ML Kit** (no aparelho, sem enviar a foto) e pesquisado.
   Se não achar, cadastre manualmente usando a foto como capa.

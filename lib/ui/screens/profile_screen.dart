@@ -263,7 +263,7 @@ class ProfileScreen extends StatelessWidget {
           const Text('Sua biblioteca digital pessoal. Pesquise livros, fotografe capas, organize sua estante e acompanhe suas leituras.'),
           const SizedBox(height: 12),
           for (final t in const [
-            'Dados de livros: Google Books e Open Library.',
+            'Dados de livros: Google Books e Open Library. Leitura gratuita e legal: Project Gutenberg, Internet Archive, Wikisource, LibriVox, MEC Livros e BibliOn.',
             'Leitura de capas e de código de barras feita no próprio celular (Google ML Kit). Suas fotos não são enviadas a nenhum servidor.',
             'Seus livros, capas e anotações ficam só neste celular. Use o backup para levar para outro.',
             'O app não guarda nem distribui livros protegidos: os links “ler grátis” apontam apenas para versões legais.',
