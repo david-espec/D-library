@@ -20,7 +20,30 @@ enum SearchField {
   final String hint;
 }
 
-class RateLimitError implements Exception {}
+class RateLimitError implements Exception {
+  @override
+  String toString() => 'Limite de consultas do Google atingido. Tente de novo em alguns minutos.';
+}
+
+/// Estante do Google Livros. IDs fixos do Google: 0 Favoritos, 2 Para ler,
+/// 3 Lendo agora, 4 Lidos; as demais são compras, histórico etc.
+class GoogleShelf {
+  final int id;
+  final String title;
+  final int count;
+  const GoogleShelf(this.id, this.title, this.count);
+
+  String get label => const {
+        0: 'Favoritos',
+        1: 'Comprados',
+        2: 'Para ler',
+        3: 'Lendo agora',
+        4: 'Lidos',
+        5: 'Avaliados',
+        6: 'Vistos recentemente',
+        7: 'Meus e-books',
+      }[id] ?? title;
+}
 
 class SearchOutcome {
   final List<SearchResult> results;
@@ -302,6 +325,52 @@ class BooksApi {
     }
     cache[r.key] = r;
     return r;
+  }
+
+  // ------------------------------------------------------- Google Livros
+  /// Extrai o ID de usuário do Google Livros de um link (…uid=123…) ou do próprio número.
+  static String? googleUserId(String text) {
+    final t = text.trim();
+    final m = RegExp(r'uid=(\d{5,})').firstMatch(t) ?? RegExp(r'users/(\d{5,})').firstMatch(t);
+    if (m != null) return m.group(1);
+    return RegExp(r'^\d{5,}$').hasMatch(t) ? t : null;
+  }
+
+  /// Estantes públicas de um usuário do Google Livros.
+  Future<List<GoogleShelf>> googleShelves(String uid) async {
+    final uri = Uri.https('www.googleapis.com', '/books/v1/users/$uid/bookshelves', {if (apiKey.isNotEmpty) 'key': apiKey});
+    final res = await _client.get(uri).timeout(_timeout);
+    if (res.statusCode == 429) throw RateLimitError();
+    if (res.statusCode == 404 || res.statusCode == 400) throw Exception('Biblioteca não encontrada. Confira o link.');
+    if (res.statusCode != 200) throw Exception('Google Livros: ${res.statusCode}');
+    final j = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return [
+      for (final it in (j['items'] as List? ?? const []))
+        GoogleShelf(
+          (it['id'] as num).toInt(),
+          (it['title'] as String?) ?? 'Estante',
+          (it['volumeCount'] as num?)?.toInt() ?? 0,
+        ),
+    ];
+  }
+
+  /// Todos os livros de uma estante pública (paginado de 40 em 40).
+  Future<List<SearchResult>> googleShelfVolumes(String uid, int shelf) async {
+    final out = <SearchResult>[];
+    for (var start = 0; start < 2000; start += 40) {
+      final uri = Uri.https('www.googleapis.com', '/books/v1/users/$uid/bookshelves/$shelf/volumes', {
+        'startIndex': '$start',
+        'maxResults': '40',
+        if (apiKey.isNotEmpty) 'key': apiKey,
+      });
+      final res = await _client.get(uri).timeout(_timeout);
+      if (res.statusCode == 429) throw RateLimitError();
+      if (res.statusCode != 200) throw Exception('Google Livros: ${res.statusCode}');
+      final items = (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['items'] as List? ?? const [];
+      out.addAll([for (final v in items) fromGoogle(Map<String, dynamic>.from(v as Map))]);
+      if (items.length < 40) break;
+    }
+    return out;
   }
 
   Future<List<SearchResult>> lookupIsbn(String isbn) async => (await search(isbn, SearchField.isbn)).results;

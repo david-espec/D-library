@@ -112,6 +112,13 @@ void main() {
     expect(s.genres.length, 2);
   });
 
+  test('Google Livros: código da biblioteca a partir do link', () {
+    expect(BooksApi.googleUserId('https://books.google.com/books?uid=112233445566778899&as_coll=4'), '112233445566778899');
+    expect(BooksApi.googleUserId('112233445566'), '112233445566');
+    expect(BooksApi.googleUserId('https://books.google.com/books?op=library'), isNull);
+    expect(const GoogleShelf(4, 'Have read', 3).label, 'Lidos');
+  });
+
   test('mesclar resultados completa campos', () {
     const a = SearchResult(key: 'google:1', provider: BookSource.google, providerId: '1', title: 'X');
     const b = SearchResult(key: 'openlibrary:1', provider: BookSource.openlibrary, providerId: '1', title: 'X', description: 'd', pageCount: 10);

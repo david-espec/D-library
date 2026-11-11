@@ -13,6 +13,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/update_sheet.dart';
 import '../../services/updater.dart';
+import 'google_import_screen.dart';
 import 'library_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -87,6 +88,8 @@ class ProfileScreen extends StatelessWidget {
           row(Icons.local_library_outlined, 'Minha biblioteca', onTap: () => shelf('all')),
           row(Icons.favorite_border_rounded, 'Favoritos', onTap: () => shelf('fav')),
           row(Icons.bookmark_border_rounded, 'Lista de desejos', onTap: () => shelf('want')),
+          row(Icons.g_mobiledata_rounded, 'Importar do Google Livros',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GoogleImportScreen()))),
           row(Icons.flag_outlined, 'Meta anual', onTap: () => _editGoal(context), trailing: value('${st.yearlyGoal} livros')),
         ]),
         group([
