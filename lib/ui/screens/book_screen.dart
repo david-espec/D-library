@@ -216,6 +216,7 @@ class _BookScreenState extends State<BookScreen> {
           const SizedBox(height: 8),
           Synopsis(text: b.description),
           InfoList(publisher: b.publisher, year: b.year, pageCount: b.pageCount, categories: b.categories, isbn: b.isbn13 ?? b.isbn10, language: b.language),
+          FreeLibraries(title: b.title, author: b.authors.firstOrNull),
           LinksList(links: b.links),
           const SizedBox(height: 16),
           TextButton.icon(

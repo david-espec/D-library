@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -232,5 +233,65 @@ class _ProgressSheetState extends State<_ProgressSheet> {
         ]),
       ]),
     );
+  }
+}
+
+
+/// Bibliotecas digitais gratuitas onde o livro pode estar disponível para
+/// empréstimo legal. MEC Livros e BibliOn exigem login e não têm busca por
+/// link: o app copia o título e abre a biblioteca para você colar na busca.
+class FreeLibraries extends StatelessWidget {
+  const FreeLibraries({super.key, required this.title, this.author});
+  final String title;
+  final String? author;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    final query = [title, if (author != null && author!.isNotEmpty) author].join(' ');
+    Future<void> copyAndOpen(String name, String url) async {
+      await Clipboard.setData(ClipboardData(text: query));
+      if (context.mounted) toast(context, 'Título copiado. No $name, cole na busca.');
+      if (context.mounted) await openUrl(context, url);
+    }
+
+    Widget tile(String name, String sub, Color color, VoidCallback onTap) => Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Material(
+            color: p.surface,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                child: Row(children: [
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(sub, style: TextStyle(color: p.text2, fontSize: 12)),
+                    ]),
+                  ),
+                  Icon(Icons.open_in_new_rounded, size: 17, color: p.text2),
+                ]),
+              ),
+            ),
+          ),
+        );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 16, bottom: 6),
+        child: Text('Ler grátis em bibliotecas digitais', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: p.text2)),
+      ),
+      tile('MEC Livros', 'Empréstimo gratuito com sua conta gov.br', const Color(0xFF1351B4),
+          () => copyAndOpen('MEC Livros', 'https://meclivros.mec.gov.br')),
+      tile('BibliOn', 'Biblioteca digital de SP — empréstimo gratuito com cadastro', const Color(0xFFE8622C),
+          () => copyAndOpen('BibliOn', 'https://biblion.org.br')),
+      tile('Open Library', 'Leitura e empréstimo gratuitos, sem sair da busca', const Color(0xFF2E9E62),
+          () => openUrl(context, 'https://openlibrary.org/search?q=${Uri.encodeQueryComponent(query)}')),
+    ]);
   }
 }
