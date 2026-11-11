@@ -61,3 +61,14 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// Leitura de texto da capa pelo Google Play Services: o modelo de IA nao vai
+// dentro do APK (o celular baixa uma vez), o que deixa o app bem menor.
+// A API e a mesma do pacote com modelo embutido.
+configurations.all {
+    exclude(group = "com.google.mlkit", module = "text-recognition")
+}
+
+dependencies {
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+}

@@ -117,7 +117,14 @@ class _ScanScreenState extends State<ScanScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => phase = _Phase.results);
-      toast(context, 'Não consegui ler a capa. Você pode pesquisar ou cadastrar manualmente.');
+      // Na primeira vez o Google Play pode ainda estar baixando o leitor de texto.
+      final downloading = RegExp('download|module|unavailable', caseSensitive: false).hasMatch('$e');
+      toast(
+        context,
+        downloading
+            ? 'O leitor de texto do Google ainda está sendo baixado. Tente de novo em instantes (precisa de internet).'
+            : 'Não consegui ler a capa. Você pode pesquisar ou cadastrar manualmente.',
+      );
     }
   }
 
