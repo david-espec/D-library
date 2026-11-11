@@ -73,7 +73,7 @@ jobs:
 
       - name: Compilar o APK
         run: |
-          flutter build apk --release --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
+          flutter build apk --release --target-platform android-arm,android-arm64 --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
           cp build/app/outputs/flutter-apk/app-release.apk D-Libery.apk
           ls -la D-Libery.apk
 
